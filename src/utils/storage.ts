@@ -21,7 +21,7 @@ export const storage = {
     if (isWeb) {
       return localStorage.getItem(key);
     }
-    return await SecureStore.getItemAsync(key);
+    return SecureStore.getItemAsync(key);
   },
 
   async removeToken(key: string): Promise<void> {
@@ -29,7 +29,11 @@ export const storage = {
       localStorage.removeItem(key);
       return;
     }
-    await SecureStore.deleteItemAsync(key);
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (e) {
+      console.log('Failed to remove token:', key, e);
+    }
   },
 
   async setAccessToken(token: string): Promise<void> {
@@ -49,7 +53,13 @@ export const storage = {
   },
 
   async clearAuth(): Promise<void> {
+    const tokenBefore = await this.getAccessToken();
+    console.log('Logout: Token before clear:', tokenBefore ? 'EXISTS' : 'NULL');
+
     await this.removeToken(KEYS.ACCESS_TOKEN);
     await this.removeToken(KEYS.USER_ROLE);
+
+    const tokenAfter = await this.getAccessToken();
+    console.log('Logout: Token after clear:', tokenAfter ? 'EXISTS' : 'NULL');
   },
 };

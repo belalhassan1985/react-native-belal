@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/hooks/useAuth';
 import { Loading } from '../src/components';
@@ -6,17 +6,19 @@ import { Loading } from '../src/components';
 export default function Index() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
-  const routerRef = useRef(router);
 
   useEffect(() => {
+    console.log('Index: isLoading=', isLoading, 'isAuthenticated=', isAuthenticated);
     if (!isLoading) {
       if (isAuthenticated) {
-        routerRef.current.replace('/(tabs)/profile');
+        console.log('Index: Redirecting to /(tabs)/home');
+        router.replace('/(tabs)/home');
       } else {
-        routerRef.current.replace('/login');
+        console.log('Index: Redirecting to /login');
+        router.replace('/login');
       }
     }
-  }, [isLoading, isAuthenticated]);
+  }, [isLoading, isAuthenticated, router]);
 
   return <Loading />;
 }

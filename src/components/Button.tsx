@@ -1,57 +1,50 @@
 import React from 'react';
-import {
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ViewStyle,
-} from 'react-native';
-import { COLORS } from '../constants';
+import { TouchableOpacity, Text, StyleSheet, ViewStyle, ActivityIndicator } from 'react-native';
+import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZE } from '../constants';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline';
   style?: ViewStyle;
+  icon?: React.ReactNode;
 }
 
 export function Button({
   title,
   onPress,
+  variant = 'primary',
+  size = 'md',
   loading = false,
   disabled = false,
-  variant = 'primary',
   style,
+  icon,
 }: ButtonProps) {
-  const buttonStyles = [
-    styles.button,
-    variant === 'primary' && styles.primaryButton,
-    variant === 'secondary' && styles.secondaryButton,
-    variant === 'outline' && styles.outlineButton,
-    (disabled || loading) && styles.disabledButton,
-    style,
-  ];
-
-  const textStyles = [
-    styles.text,
-    variant === 'primary' && styles.primaryText,
-    variant === 'secondary' && styles.secondaryText,
-    variant === 'outline' && styles.outlineText,
-  ];
-
   return (
     <TouchableOpacity
-      style={buttonStyles}
+      style={[
+        styles.button,
+        styles[variant],
+        styles[size],
+        disabled && styles.disabled,
+        style,
+      ]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? COLORS.primary : COLORS.surface} />
+        <ActivityIndicator size="small" color={COLORS.text} />
       ) : (
-        <Text style={textStyles}>{title}</Text>
+        <>
+          {icon && <Text style={styles.icon}>{icon}</Text>}
+          <Text style={[styles.text, styles[`${variant}Text`], styles[`${size}Text`]]}>
+            {title}
+          </Text>
+        </>
       )}
     </TouchableOpacity>
   );
@@ -59,38 +52,72 @@ export function Button({
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
+    borderRadius: BORDER_RADIUS.md,
+    gap: SPACING.sm,
   },
-  primaryButton: {
+  primary: {
     backgroundColor: COLORS.primary,
   },
-  secondaryButton: {
-    backgroundColor: COLORS.secondary,
+  secondary: {
+    backgroundColor: COLORS.surfaceLight,
   },
-  outlineButton: {
+  outline: {
     backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  disabledButton: {
-    opacity: 0.6,
+  ghost: {
+    backgroundColor: 'transparent',
+  },
+  danger: {
+    backgroundColor: COLORS.error,
+  },
+  sm: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  md: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+  },
+  lg: {
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   text: {
-    fontSize: 16,
     fontWeight: '600',
   },
   primaryText: {
-    color: COLORS.surface,
+    color: COLORS.text,
   },
   secondaryText: {
-    color: COLORS.surface,
+    color: COLORS.text,
   },
   outlineText: {
+    color: COLORS.textSecondary,
+  },
+  ghostText: {
     color: COLORS.primary,
+  },
+  dangerText: {
+    color: COLORS.text,
+  },
+  smText: {
+    fontSize: FONT_SIZE.sm,
+  },
+  mdText: {
+    fontSize: FONT_SIZE.md,
+  },
+  lgText: {
+    fontSize: FONT_SIZE.lg,
+  },
+  icon: {
+    fontSize: FONT_SIZE.md,
   },
 });

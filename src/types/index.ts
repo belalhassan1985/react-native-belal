@@ -49,3 +49,6 @@ export interface ApiError {
   message: string;
   code?: string;
 }
+
+export * from './course';
+export * from './lessonProgress';
