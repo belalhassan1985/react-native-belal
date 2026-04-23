@@ -1,18 +1,23 @@
 export interface Course {
   id: number;
-  title: string;
-  description: string;
-  category_id: number;
+  name: string;
+  course_goal: string;
+  course_conditions?: string;
+  duration_in_days?: number;
+  course_visibility?: string;
+  image_url?: string;
+  start_date: string;
+  end_date: string;
+  course_status?: 'pending' | 'approved' | 'expired';
+  trainees_count?: number;
+  beneficiaries?: string;
+  courses_category_id: number;
   category_name?: string;
   training_center_id: number;
   training_center_name?: string;
-  start_date: string;
-  end_date: string;
-  max_trainees: number;
-  status: 'pending' | 'approved' | 'expired';
-  image_url?: string;
-  created_at: string;
-  updated_at: string;
+  max_trainees?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CourseLecture {

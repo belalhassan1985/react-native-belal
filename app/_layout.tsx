@@ -28,6 +28,20 @@ export default function RootLayout() {
             animation: 'none',
           }}
         />
+        <Stack.Screen
+          name="course/[id]"
+          options={{
+            animation: 'slide_from_right',
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
+          name="lesson/[id]"
+          options={{
+            animation: 'slide_from_right',
+            presentation: 'card',
+          }}
+        />
       </Stack>
     </AuthProvider>
   );

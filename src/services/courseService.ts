@@ -8,6 +8,12 @@ import {
   PaginatedResponse,
 } from '../types';
 
+export interface CourseWithContent {
+  course: Course;
+  lectures: CourseLecture[];
+  lessons: CourseLesson[];
+}
+
 export const courseService = {
   async getAllCourses(params?: {
     page?: number;
@@ -27,16 +33,35 @@ export const courseService = {
     return apiClient.get<PaginatedResponse<Course>>(endpoint);
   },
 
-  async getCourse(id: number): Promise<ApiResponse<Course>> {
+  async getCourseById(id: number): Promise<ApiResponse<Course>> {
     return apiClient.get<ApiResponse<Course>>(`/course/get-course?id=${id}`);
   },
 
   async getCourseLecturesAndLessons(
     courseId: number
-  ): Promise<ApiResponse<{ course: Course; lectures: CourseLecture[]; lessons: CourseLesson[] }>> {
-    return apiClient.get<ApiResponse<{ course: Course; lectures: CourseLecture[]; lessons: CourseLesson[] }>>(
-      `/course/get-course-lectures-and-lessons?courseId=${courseId}`
-    );
+  ): Promise<ApiResponse<CourseWithContent>> {
+    // Try with id param (fallback if courseId doesn't work)
+    try {
+      return await apiClient.get<ApiResponse<CourseWithContent>>(
+        `/course/get-course-lectures-and-lessons?id=${courseId}`
+      );
+    } catch {
+      // Try original format
+      return await apiClient.get<ApiResponse<CourseWithContent>>(
+        `/course/get-course-lectures-and-lessons?courseId=${courseId}`
+      );
+    }
+  },
+
+  async getLecturesByCourseId(id: number): Promise<ApiResponse<CourseLecture[]>> {
+    // Alternative endpoint for just lectures
+    try {
+      return await apiClient.get<ApiResponse<CourseLecture[]>>(
+        `/course-lecture/get-all-course-lectures?id=${id}`
+      );
+    } catch {
+      return { status: 'success', data: [] };
+    }
   },
 
   async getAllCategories(): Promise<ApiResponse<CoursesCategory[]>> {

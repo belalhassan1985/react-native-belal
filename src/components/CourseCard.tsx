@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card } from './Card';
-import { ProgressBar } from './ProgressBar';
+import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
 import { TraineeCourse } from '../types';
-import { COLORS } from '../constants';
+import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS } from '../constants';
+import { ProgressBar } from './ProgressBar';
 
 interface CourseCardProps {
   course: TraineeCourse;
@@ -13,160 +12,247 @@ interface CourseCardProps {
 
 export function CourseCard({ course, onPress, variant = 'compact' }: CourseCardProps) {
   const isFeatured = variant === 'featured';
+  
+  const formatDate = (dateStr: string | undefined): string => {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleDateString('ar-IQ', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getStatusLabel = (status: string): string => {
+    switch (status) {
+      case 'active': return 'نشط';
+      case 'completed': return 'مكتمل';
+      case 'pending': return 'قيد الانتظار';
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'active': return COLORS.primary;
+      case 'completed': return COLORS.success;
+      case 'pending': return '#F59E0B';
+      default: return COLORS.secondary;
+    }
+  };
+
+  console.log('[CourseCard] Rendering, courseId:', course?.id, 'has onPress:', !!onPress);
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <Card style={[styles.card, isFeatured && styles.featuredCard]} padding={0}>
-        {course.course_image_url && (
+    <Pressable
+      style={({ pressed }) => [
+        styles.container,
+        isFeatured && styles.featuredContainer,
+        pressed && styles.pressed,
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.card}>
+        {course?.course_image_url && (
           <Image
             source={{ uri: course.course_image_url }}
             style={[styles.image, isFeatured && styles.featuredImage]}
+            resizeMode="cover"
           />
         )}
+        
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={[styles.title, isFeatured && styles.featuredTitle]} numberOfLines={2}>
-              {course.course_title}
-            </Text>
-            <View style={[styles.badge, { backgroundColor: getStatusColor(course.status) }]}>
-              <Text style={styles.badgeText}>{getStatusLabel(course.status)}</Text>
+            <View style={styles.titleContainer}>
+              <Text style={[styles.title, isFeatured && styles.featuredTitle]} numberOfLines={2}>
+                {course?.course_title || 'بدون عنوان'}
+              </Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(course?.status) }]}>
+              <Text style={styles.statusText}>
+                {getStatusLabel(course?.status)}
+              </Text>
             </View>
           </View>
 
-          {course.training_center_name && (
+          {course?.training_center_name && (
             <Text style={styles.center} numberOfLines={1}>
               {course.training_center_name}
             </Text>
           )}
 
-          {variant === 'featured' && course.progress_percentage > 0 && (
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressLabel}>التقدم</Text>
-              <ProgressBar progress={course.progress_percentage} showLabel />
+          {course?.course_description && (
+            <Text style={styles.description} numberOfLines={2}>
+              {course.course_description}
+            </Text>
+          )}
+
+          {variant === 'featured' && (course?.progress_percentage ?? 0) > 0 && (
+            <View style={styles.progressSection}>
+              <View style={styles.progressHeader}>
+                <Text style={styles.progressLabel}>تقدمك في الدورة</Text>
+                <Text style={styles.progressPercent}>
+                  {course?.progress_percentage || 0}%
+                </Text>
+              </View>
+              <ProgressBar 
+                progress={course?.progress_percentage || 0} 
+                showLabel={false}
+                height={6}
+              />
+              <Text style={styles.progressDetail}>
+                {course?.completed_lessons || 0} من {course?.total_lessons || 0} درس مكتمل
+              </Text>
             </View>
           )}
 
           <View style={styles.footer}>
-            <Text style={styles.stats}>
-              {course.completed_lessons}/{course.total_lessons} درس
-            </Text>
-            <Text style={styles.date}>
-              {formatDate(course.start_date)}
-            </Text>
+            <View style={styles.dateInfo}>
+              <Text style={styles.dateLabel}>بدأ</Text>
+              <Text style={styles.dateValue}>{formatDate(course?.start_date)}</Text>
+            </View>
+            <View style={styles.cta}>
+              <Text style={styles.ctaText}>متابعة</Text>
+              <Text style={styles.ctaArrow}>←</Text>
+            </View>
           </View>
         </View>
-      </Card>
-    </TouchableOpacity>
+      </View>
+    </Pressable>
   );
 }
 
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'active':
-      return COLORS.primary;
-    case 'completed':
-      return COLORS.success;
-    case 'pending':
-      return '#F59E0B';
-    default:
-      return COLORS.secondary;
-  }
-}
-
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case 'active':
-      return 'نشط';
-    case 'completed':
-      return 'مكتمل';
-    case 'pending':
-      return 'قيد الانتظار';
-    default:
-      return status;
-  }
-}
-
-function formatDate(dateStr: string): string {
-  try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('ar-IQ', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: 16,
+  container: {
+    marginBottom: SPACING.md,
   },
-  featuredCard: {
-    marginBottom: 24,
+  featuredContainer: {
+    marginBottom: SPACING.lg,
+  },
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   image: {
     width: '100%',
     height: 100,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.surfaceLight,
   },
   featuredImage: {
-    height: 160,
+    height: 140,
   },
   content: {
-    padding: 16,
+    padding: SPACING.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
+  },
+  titleContainer: {
+    flex: 1,
+    marginEnd: SPACING.sm,
   },
   title: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: FONT_SIZE.md,
+    fontWeight: '700',
     color: COLORS.text,
-    marginEnd: 12,
+    textAlign: 'right',
   },
   featuredTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.lg,
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+  statusBadge: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
   },
-  badgeText: {
-    fontSize: 11,
+  statusText: {
+    fontSize: FONT_SIZE.xs,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   center: {
-    fontSize: 13,
+    fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
-    marginBottom: 12,
+    textAlign: 'right',
+    marginBottom: SPACING.xs,
   },
-  progressContainer: {
-    marginBottom: 12,
+  description: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    textAlign: 'right',
+    marginBottom: SPACING.sm,
+    lineHeight: 20,
+  },
+  progressSection: {
+    marginBottom: SPACING.sm,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
   },
   progressLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
-    marginBottom: 6,
+  },
+  progressPercent: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  progressDetail: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
-  stats: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+  dateInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  date: {
-    fontSize: 12,
+  dateLabel: {
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
+    marginEnd: 4,
+  },
+  dateValue: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ctaText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginEnd: 4,
+  },
+  ctaArrow: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.primary,
   },
 });

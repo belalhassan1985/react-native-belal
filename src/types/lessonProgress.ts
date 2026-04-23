@@ -17,9 +17,12 @@ export interface TraineeCourse {
 export interface LectureProgress {
   id: number;
   lecture_id: number;
-  lecture_title: string;
+  title: string;
+  order: number;
   course_id: number;
   is_completed: boolean;
+  completed_lessons_count: number;
+  total_lessons_count: number;
   completed_at?: string;
   updated_at: string;
 }
@@ -27,10 +30,12 @@ export interface LectureProgress {
 export interface LessonProgress {
   id: number;
   lesson_id: number;
-  lesson_title: string;
+  title: string;
+  description: string;
+  video_url?: string;
+  duration_minutes: number;
+  order: number;
   lecture_id: number;
-  lecture_title: string;
-  course_id: number;
   is_completed: boolean;
   completed_at?: string;
   updated_at: string;
