@@ -74,3 +74,28 @@ export interface JoinRequest {
   status: 'pending' | 'accepted' | 'rejected';
   requested_at: string;
 }
+
+export interface LessonProgress {
+  lesson_id: number;
+  lesson_name: string;
+  is_completed: boolean;
+  completed_at?: string;
+}
+
+export interface LectureProgress {
+  lecture_id: number;
+  lecture_name: string;
+  progress_percentage: number;
+  total_lessons: number;
+  completed_lessons: number;
+  lessons: LessonProgress[];
+}
+
+export interface CourseProgress {
+  course_id: number;
+  course_name: string;
+  progress_percentage: number;
+  total_lectures: number;
+  completed_lectures: number;
+  lectures: LectureProgress[];
+}

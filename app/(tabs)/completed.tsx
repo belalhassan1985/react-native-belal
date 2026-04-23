@@ -1,60 +1,66 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  StatusBar,
-  Image,
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { lessonProgressService } from '../../src/services/lessonProgressService';
-import { TraineeCourse } from '../../src/types';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS } from '../../src/constants';
+import { EmptyState, Loading } from '../../src/components';
+import { CompletedCourseCard } from '../../src/components/CompletedCourseCard';
+import { StatsCard } from '../../src/components/StatsCard';
+import { SPACING } from '../../src/constants';
+import { courseService } from '../../src/services/courseService';
+import { CourseProgress } from '../../src/types';
 
 export default function CompletedScreen() {
-  const [completedCourses, setCompletedCourses] = useState<TraineeCourse[]>([]);
+  const [myCourses, setMyCourses] = useState<CourseProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  const fetchCompleted = useCallback(async () => {
-    setError(null);
+  const loadData = async () => {
     try {
-      const res = await lessonProgressService.getMyCourses();
-      if (res.status === 'success' && Array.isArray(res.data)) {
-        const completed = res.data.filter(c => c.status === 'completed');
-        setCompletedCourses(Array.isArray(completed) ? completed : []);
-      } else {
-        setCompletedCourses([]);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ');
-      setCompletedCourses([]);
+      setError(null);
+      const courses = await courseService.getMyCourses();
+      const coursesArray = Array.isArray(courses) ? courses : [];
+      setMyCourses(coursesArray);
+    } catch (err: any) {
+      console.error('[Completed] Error loading courses:', err);
+      setError(err.message || 'فشل تحميل البيانات');
+      setMyCourses([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    fetchCompleted();
-  }, [fetchCompleted]);
+    loadData();
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchCompleted();
+    await loadData();
     setRefreshing(false);
   };
 
-  if (isLoading && !refreshing) {
+  const onCoursePress = (courseId: number) => {
+    router.push(`/course/${courseId}`);
+  };
+
+  const completedCourses = myCourses.filter(c => c.progress_percentage === 100);
+  const totalLectures = completedCourses.reduce((sum, c) => sum + c.total_lectures, 0);
+
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingEmoji}>🎓</Text>
-          <Text style={styles.loadingText}>جاري التحميل...</Text>
-        </View>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+        <Loading />
       </SafeAreaView>
     );
   }
@@ -62,34 +68,20 @@ export default function CompletedScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-        <View style={styles.centerContainer}>
-          <Text style={styles.errorEmoji}>⚠️</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <View style={styles.retryButton}>
-            <Text style={styles.retryText} onPress={fetchCompleted}>إعادة المحاولة</Text>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (completedCourses.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-        <View style={styles.centerContainer}>
-          <Text style={styles.emptyEmoji}>🎓</Text>
-          <Text style={styles.emptyTitle}>لا توجد دورات مكتملة</Text>
-          <Text style={styles.emptyMessage}>أكمل تدريبك للحصول على الشهادات</Text>
-        </View>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+        <EmptyState
+          title="حدث خطأ"
+          message={error}
+          icon="⚠️"
+        />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -98,299 +90,143 @@ export default function CompletedScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={COLORS.primary}
-            colors={[COLORS.primary]}
+            tintColor="#10B981"
+            colors={['#10B981']}
           />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>الدورات المكتملة</Text>
-          <Text style={styles.headerSubtitle}>
-            {completedCourses.length} دورة
-          </Text>
-        </View>
-
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{completedCourses.length}</Text>
-            <Text style={styles.statLabel}>إجمالي</Text>
+        <LinearGradient
+          colors={['#ECFDF5', '#F8FAFC']}
+          style={styles.headerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.header}>
+            <Text style={styles.greeting}>الدورات المكتملة 🎓</Text>
+            <Text style={styles.subtitle}>إنجازاتك التدريبية</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>
-              {completedCourses.reduce((sum, c) => sum + (c.total_lessons || 0), 0)}
-            </Text>
-            <Text style={styles.statLabel}>درس</Text>
+        </LinearGradient>
+
+        {completedCourses.length > 0 && (
+          <View style={styles.statsSection}>
+            <View style={styles.statsGrid}>
+              <View style={styles.statCardWrapper}>
+                <StatsCard
+                  title="الدورات المكتملة"
+                  value={completedCourses.length}
+                  subtitle="إنجاز كامل"
+                  icon="✅"
+                  gradientColors={['#10B981', '#059669']}
+                />
+              </View>
+              <View style={styles.statCardWrapper}>
+                <StatsCard
+                  title="المحاضرات"
+                  value={totalLectures}
+                  subtitle="تم إنهاؤها"
+                  icon="📚"
+                  gradientColors={['#8B5CF6', '#7C3AED']}
+                />
+              </View>
+            </View>
           </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>سجل التدريب</Text>
-          {completedCourses.map((course, index) => (
-            <CompletedCourseCard key={course.id || index} course={course} />
-          ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function CompletedCourseCard({ course }: { course: TraineeCourse }) {
-  const formatDate = (dateStr: string | undefined): string => {
-    if (!dateStr) return '';
-    try {
-      return new Date(dateStr).toLocaleDateString('ar-IQ', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch {
-      return '';
-    }
-  };
-
-  return (
-    <View style={styles.courseCard}>
-      {course.course_image_url && (
-        <Image
-          source={{ uri: course.course_image_url }}
-          style={styles.courseImage}
-          resizeMode="cover"
-        />
-      )}
-      <View style={styles.courseContent}>
-        <View style={styles.courseHeader}>
-          <View style={styles.completedBadge}>
-            <Text style={styles.completedBadgeText}>مكتمل</Text>
-          </View>
-          <Text style={styles.courseDate}>{formatDate(course.end_date)}</Text>
-        </View>
-        <Text style={styles.courseTitle}>{course.course_title || 'بدون عنوان'}</Text>
-        {course.training_center_name && (
-          <Text style={styles.courseCenter}>{course.training_center_name}</Text>
         )}
-        <View style={styles.courseStats}>
-          <View style={styles.statChip}>
-            <Text style={styles.statChipText}>
-              {course.completed_lessons}/{course.total_lessons} درس
-            </Text>
+
+        {completedCourses.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>سجل الإنجازات</Text>
+              <Text style={styles.sectionSubtitle}>الدورات التي أكملتها بنجاح</Text>
+            </View>
+            {completedCourses.map((course) => (
+              <CompletedCourseCard
+                key={course.course_id}
+                course={course}
+                onPress={() => onCoursePress(course.course_id)}
+              />
+            ))}
           </View>
-          <View style={styles.statChip}>
-            <Text style={styles.statChipText}>
-              {course.progress_percentage}%
-            </Text>
-          </View>
-        </View>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${Math.min(course.progress_percentage || 0, 100)}%` },
-              ]}
+        ) : (
+          <View style={styles.emptyContainer}>
+            <EmptyState
+              title="لا توجد دورات مكتملة"
+              message="أكمل دوراتك الحالية للحصول على الشهادات"
+              icon="🎓"
             />
           </View>
-        </View>
-      </View>
-    </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xxl,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.xl,
+  headerGradient: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   header: {
-    paddingVertical: SPACING.xl,
+    marginBottom: SPACING.sm,
   },
-  headerTitle: {
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: '700',
-    color: COLORS.text,
+  greeting: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1F2937',
     textAlign: 'right',
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  headerSubtitle: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
     textAlign: 'right',
-    marginTop: SPACING.xs,
+    lineHeight: 24,
   },
-  statsCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
+  statsSection: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  statsGrid: {
     flexDirection: 'row',
-    padding: SPACING.lg,
-    marginBottom: SPACING.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
   },
-  statItem: {
+  statCardWrapper: {
     flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  statLabel: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: COLORS.border,
-    marginHorizontal: SPACING.md,
   },
   section: {
-    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+  },
+  sectionHeader: {
+    marginBottom: SPACING.md,
   },
   sectionTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1F2937',
     textAlign: 'right',
-    marginBottom: SPACING.md,
+    marginBottom: 4,
   },
-  courseCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    marginBottom: SPACING.md,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  courseImage: {
-    width: '100%',
-    height: 100,
-    backgroundColor: COLORS.surfaceLight,
-  },
-  courseContent: {
-    padding: SPACING.md,
-  },
-  courseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  completedBadge: {
-    backgroundColor: COLORS.success,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  completedBadgeText: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  courseDate: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-  },
-  courseTitle: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.text,
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
     textAlign: 'right',
-    marginBottom: SPACING.xs,
   },
-  courseCenter: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    textAlign: 'right',
-    marginBottom: SPACING.sm,
-  },
-  courseStats: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    marginBottom: SPACING.sm,
-  },
-  statChip: {
-    backgroundColor: COLORS.surfaceLight,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  statChipText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-  },
-  progressContainer: {
-    marginTop: SPACING.xs,
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: COLORS.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: 4,
-    backgroundColor: COLORS.success,
-    borderRadius: 2,
-  },
-  loadingEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
-  },
-  loadingText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
-  },
-  emptyTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: SPACING.sm,
-  },
-  emptyMessage: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  errorEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
-  },
-  errorText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.error,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-  },
-  retryButton: {
-    padding: SPACING.md,
-  },
-  retryText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.primary,
-    fontWeight: '600',
+  emptyContainer: {
+    marginTop: SPACING.xxl,
+    paddingHorizontal: SPACING.lg,
   },
 });

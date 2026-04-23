@@ -11,10 +11,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../src/hooks/useAuth';
 import { userService } from '../../src/services/userService';
 import { UserProfile } from '../../src/types';
-import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS } from '../../src/constants';
+import { SPACING, BORDER_RADIUS } from '../../src/constants';
 
 const getStringValue = (value: any): string => {
   if (value === null || value === undefined) return '';
@@ -92,9 +93,9 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#3B82F6" />
           <Text style={styles.loadingText}>جاري التحميل...</Text>
         </View>
       </SafeAreaView>
@@ -104,7 +105,7 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
         <View style={styles.centerContainer}>
           <Text style={styles.errorEmoji}>⚠️</Text>
           <Text style={styles.errorText}>فشل تحميل البيانات</Text>
@@ -131,107 +132,112 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerSection}>
-          <View style={styles.avatarContainer}>
-            {profile.image_url ? (
-              <Image
-                source={{ uri: profile.image_url.startsWith('http') ? profile.image_url : `https://api.tcms-iraq.com${profile.image_url}` }}
-                style={styles.avatar}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {profile.nickname?.charAt(0) || profile.first_name?.charAt(0) || '?'}
-                </Text>
-              </View>
-            )}
-            <View style={styles.onlineIndicator} />
-          </View>
-          <Text style={styles.fullName}>{fullName || 'غير متوفر'}</Text>
-          <Text style={styles.nickname}>{getDisplayValue(profile.nickname)}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>{roleLabel}</Text>
-          </View>
-        </View>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statIcon}>📧</Text>
-            <Text style={styles.statLabel}>البريد</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statIcon}>⚧</Text>
-            <Text style={styles.statLabel}>الجنس</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statIcon}>🎂</Text>
-            <Text style={styles.statLabel}>العمر</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>المعلومات الشخصية</Text>
-          <View style={styles.infoCard}>
-            <InfoRow label="الاسم الكامل" value={fullName} />
-            <InfoRow label="اللقب" value={getDisplayValue(profile.nickname)} />
-            <InfoRow label="البريد الإلكتروني" value={getDisplayValue(profile.email)} />
-            <InfoRow label="الجنس" value={getGenderArabic(profile.gender)} />
-            <InfoRow label="تاريخ الميلاد" value={formatDate(profile.birth_date) || 'غير متوفر'} />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>المعلومات الإدارية</Text>
-          <View style={styles.infoCard}>
-            <InfoRow label="المحافظة" value={getDisplayValue(profile.state)} />
-            <InfoRow label="مركز التدريب" value={getDisplayValue(profile.training_center)} />
-            {profile.agency && profile.agency !== 'غير متوفر' && (
-              <InfoRow label="الوكالة" value={getDisplayValue(profile.agency)} />
-            )}
-            {profile.general_department && profile.general_department !== 'غير متوفر' && (
-              <InfoRow label="القسم العام" value={getDisplayValue(profile.general_department)} />
-            )}
-            {profile.department && profile.department !== 'غير متوفر' && (
-              <InfoRow label="القسم" value={getDisplayValue(profile.department)} />
-            )}
-            {profile.section && profile.section !== 'غير متوفر' && (
-              <InfoRow label="الشعبة" value={getDisplayValue(profile.section)} />
-            )}
-            <InfoRow label="الرقم الوظيفي" value={String(profile.id) || 'غير متوفر'} />
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
-          onPress={handleLogout}
-          disabled={isLoggingOut}
-          activeOpacity={0.7}
+        <LinearGradient
+          colors={['#EEF2FF', '#F8FAFC']}
+          style={styles.headerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
-          {isLoggingOut ? (
-            <ActivityIndicator size="small" color={COLORS.text} />
-          ) : (
-            <Text style={styles.logoutText}>تسجيل الخروج</Text>
-          )}
-        </TouchableOpacity>
+          <View style={styles.headerSection}>
+            <View style={styles.avatarContainer}>
+              {profile.image_url ? (
+                <Image
+                  source={{ uri: profile.image_url.startsWith('http') ? profile.image_url : `https://api.tcms-iraq.com${profile.image_url}` }}
+                  style={styles.avatar}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarText}>
+                    {profile.nickname?.charAt(0) || profile.first_name?.charAt(0) || '?'}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.onlineIndicator} />
+            </View>
+            <Text style={styles.fullName}>{fullName || 'غير متوفر'}</Text>
+            <Text style={styles.nickname}>{getDisplayValue(profile.nickname)}</Text>
+            <LinearGradient
+              colors={['#3B82F6', '#2563EB']}
+              style={styles.roleBadge}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.roleBadgeText}>{roleLabel}</Text>
+            </LinearGradient>
+          </View>
+        </LinearGradient>
 
-        <Text style={styles.version}>الإصدار 1.0.0</Text>
+        <View style={styles.content}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>المعلومات الشخصية</Text>
+            <View style={styles.infoCard}>
+              <InfoRow icon="👤" label="الاسم الكامل" value={fullName} />
+              <InfoRow icon="🏷️" label="اللقب" value={getDisplayValue(profile.nickname)} />
+              <InfoRow icon="📧" label="البريد الإلكتروني" value={getDisplayValue(profile.email)} />
+              <InfoRow icon="⚧" label="الجنس" value={getGenderArabic(profile.gender)} />
+              <InfoRow icon="🎂" label="تاريخ الميلاد" value={formatDate(profile.birth_date) || 'غير متوفر'} />
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>المعلومات الإدارية</Text>
+            <View style={styles.infoCard}>
+              <InfoRow icon="🗺️" label="المحافظة" value={getDisplayValue(profile.state)} />
+              <InfoRow icon="🏢" label="مركز التدريب" value={getDisplayValue(profile.training_center)} />
+              {profile.agency && profile.agency !== 'غير متوفر' && (
+                <InfoRow icon="🏛️" label="الوكالة" value={getDisplayValue(profile.agency)} />
+              )}
+              {profile.general_department && profile.general_department !== 'غير متوفر' && (
+                <InfoRow icon="📁" label="القسم العام" value={getDisplayValue(profile.general_department)} />
+              )}
+              {profile.department && profile.department !== 'غير متوفر' && (
+                <InfoRow icon="📂" label="القسم" value={getDisplayValue(profile.department)} />
+              )}
+              {profile.section && profile.section !== 'غير متوفر' && (
+                <InfoRow icon="📄" label="الشعبة" value={getDisplayValue(profile.section)} />
+              )}
+              <InfoRow icon="🔢" label="الرقم الوظيفي" value={String(profile.id) || 'غير متوفر'} />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
+            onPress={handleLogout}
+            disabled={isLoggingOut}
+            activeOpacity={0.8}
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.logoutIcon}>🚪</Text>
+                <Text style={styles.logoutText}>تسجيل الخروج</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.version}>الإصدار 1.0.0</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <View style={styles.infoRow}>
+      <View style={styles.infoLeft}>
+        <Text style={styles.infoIcon}>{icon}</Text>
+        <Text style={styles.infoLabel}>{label}</Text>
+      </View>
       <Text style={styles.infoValue}>{value}</Text>
-      <Text style={styles.infoLabel}>{label}</Text>
     </View>
   );
 }
@@ -239,7 +245,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
   },
   scrollView: {
     flex: 1,
@@ -258,111 +264,113 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.xl,
   },
+  headerGradient: {
+    paddingBottom: SPACING.xl,
+  },
   headerSection: {
     alignItems: 'center',
-    paddingVertical: SPACING.xl,
+    paddingTop: SPACING.xl,
     paddingHorizontal: SPACING.lg,
   },
   avatarContainer: {
     marginBottom: SPACING.md,
+    position: 'relative',
   },
   avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 3,
-    borderColor: COLORS.primary,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarPlaceholder: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: COLORS.primary,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#3B82F6',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.primaryLight,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarText: {
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    fontSize: 48,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   onlineIndicator: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: COLORS.success,
-    borderWidth: 2,
-    borderColor: COLORS.background,
+    bottom: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#10B981',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
   },
   fullName: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1F2937',
     textAlign: 'center',
-    marginBottom: SPACING.xs,
+    marginBottom: 4,
   },
   nickname: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    fontSize: 16,
+    color: '#6B7280',
     textAlign: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   roleBadge: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   roleBadgeText: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  statsRow: {
-    flexDirection: 'row',
+  content: {
     paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.lg,
-    gap: SPACING.sm,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  statIcon: {
-    fontSize: 20,
-    marginBottom: SPACING.xs,
-  },
-  statLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
   },
   section: {
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.lg,
+    marginTop: SPACING.lg,
   },
   sectionTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
     textAlign: 'right',
     marginBottom: SPACING.md,
   },
   infoCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.xl,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#E5E7EB',
   },
   infoRow: {
     flexDirection: 'row',
@@ -371,45 +379,64 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#F3F4F6',
+  },
+  infoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  infoIcon: {
+    fontSize: 20,
+    marginLeft: SPACING.sm,
   },
   infoLabel: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#6B7280',
     flex: 1,
   },
   infoValue: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.text,
-    fontWeight: '500',
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '600',
     textAlign: 'right',
     flex: 1,
   },
   logoutButton: {
-    marginHorizontal: SPACING.lg,
-    backgroundColor: COLORS.error,
+    marginTop: SPACING.xl,
+    backgroundColor: '#EF4444',
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.xl,
     alignItems: 'center',
-    marginTop: SPACING.md,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   logoutButtonDisabled: {
     opacity: 0.7,
   },
+  logoutIcon: {
+    fontSize: 20,
+  },
   logoutText: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   version: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    color: '#9CA3AF',
     textAlign: 'center',
     marginTop: SPACING.xl,
   },
   loadingText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    fontSize: 16,
+    color: '#6B7280',
     marginTop: SPACING.md,
   },
   errorEmoji: {
@@ -417,8 +444,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   errorText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.error,
+    fontSize: 16,
+    color: '#EF4444',
     textAlign: 'center',
     marginBottom: SPACING.md,
   },
@@ -426,8 +453,8 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   retryText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.primary,
+    fontSize: 16,
+    color: '#3B82F6',
     fontWeight: '600',
   },
 });

@@ -1,12 +1,13 @@
-import { apiClient } from '../utils/apiClient';
 import {
+  ApiResponse,
   Course,
   CourseLecture,
   CourseLesson,
+  CourseProgress,
   CoursesCategory,
-  ApiResponse,
-  PaginatedResponse,
+  PaginatedResponse
 } from '../types';
+import { apiClient } from '../utils/apiClient';
 
 export interface CourseWithContent {
   course: Course;
@@ -70,5 +71,29 @@ export const courseService = {
 
   async getCoursesEndingSoon(): Promise<ApiResponse<Course[]>> {
     return apiClient.get<ApiResponse<Course[]>>('/course/get-courses-ending-soon');
+  },
+
+  async getMyCourses(): Promise<CourseProgress[]> {
+    try {
+      const response = await apiClient.get<any>('/lesson-progress/my-courses');
+      if (Array.isArray(response)) {
+        return response;
+      }
+      if (response && Array.isArray(response.data)) {
+        return response.data;
+      }
+      if (response && response.status === 'success' && Array.isArray(response.data)) {
+        return response.data;
+      }
+      console.warn('[courseService] Unexpected response format:', response);
+      return [];
+    } catch (error) {
+      console.error('[courseService] Error in getMyCourses:', error);
+      return [];
+    }
+  },
+
+  async getCourseProgress(courseId: number): Promise<ApiResponse<CourseProgress>> {
+    return apiClient.get<ApiResponse<CourseProgress>>(`/lesson-progress/course/${courseId}`);
   },
 };
