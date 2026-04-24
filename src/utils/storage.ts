@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 const KEYS = {
   ACCESS_TOKEN: 'access_token',
   USER_ROLE: 'user_role',
+  FIRST_LOGIN_RESET_SKIPPED: 'first_login_reset_skipped',
 };
 
 const isWeb = Platform.OS === 'web';
@@ -32,7 +33,7 @@ export const storage = {
     try {
       await SecureStore.deleteItemAsync(key);
     } catch (e) {
-      console.log('Failed to remove token:', key, e);
+      console.error('Failed to remove token:', key, e);
     }
   },
 
@@ -53,13 +54,22 @@ export const storage = {
   },
 
   async clearAuth(): Promise<void> {
-    const tokenBefore = await this.getAccessToken();
-    console.log('Logout: Token before clear:', tokenBefore ? 'EXISTS' : 'NULL');
-
     await this.removeToken(KEYS.ACCESS_TOKEN);
     await this.removeToken(KEYS.USER_ROLE);
+    await this.removeToken(KEYS.FIRST_LOGIN_RESET_SKIPPED);
+  },
 
-    const tokenAfter = await this.getAccessToken();
-    console.log('Logout: Token after clear:', tokenAfter ? 'EXISTS' : 'NULL');
+  async hasToken(): Promise<boolean> {
+    const token = await this.getAccessToken();
+    return !!token;
+  },
+
+  async setFirstLoginResetSkipped(value: boolean): Promise<void> {
+    await this.setToken(KEYS.FIRST_LOGIN_RESET_SKIPPED, value ? '1' : '0');
+  },
+
+  async isFirstLoginResetSkipped(): Promise<boolean> {
+    const val = await this.getToken(KEYS.FIRST_LOGIN_RESET_SKIPPED);
+    return val === '1';
   },
 };

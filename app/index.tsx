@@ -5,20 +5,21 @@ import { Loading } from '../src/components';
 
 export default function Index() {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isFirstLogin, hasSkippedFirstLoginReset, isLoading } = useAuth();
 
   useEffect(() => {
-    console.log('Index: isLoading=', isLoading, 'isAuthenticated=', isAuthenticated);
     if (!isLoading) {
       if (isAuthenticated) {
-        console.log('Index: Redirecting to /(tabs)/home');
-        router.replace('/(tabs)/home');
+        if (isFirstLogin && !hasSkippedFirstLoginReset) {
+          router.replace('/reset-password?mode=first-login');
+        } else {
+          router.replace('/(tabs)/home');
+        }
       } else {
-        console.log('Index: Redirecting to /login');
         router.replace('/login');
       }
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, isFirstLogin, hasSkippedFirstLoginReset, router]);
 
   return <Loading />;
 }

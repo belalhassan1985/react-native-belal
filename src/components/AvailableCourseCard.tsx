@@ -1,8 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BORDER_RADIUS, SPACING } from '../constants';
+import { BORDER_RADIUS, COLORS, SPACING } from '../constants';
 import { Course } from '../types';
 
 interface AvailableCourseCardProps {
@@ -10,14 +9,14 @@ interface AvailableCourseCardProps {
   onPress?: () => void;
 }
 
-export function AvailableCourseCard({ course, onPress }: AvailableCourseCardProps) {
+function AvailableCourseCardComponent({ course, onPress }: AvailableCourseCardProps) {
   const router = useRouter();
 
   const handlePress = () => {
     if (onPress) {
       onPress();
     } else {
-      router.push(`/course/${course.id}` as any);
+      router.push(`/course/${course.id}`);
     }
   };
 
@@ -38,67 +37,59 @@ export function AvailableCourseCard({ course, onPress }: AvailableCourseCardProp
     <Pressable
       style={styles.container}
       onPress={handlePress}
-      android_ripple={{ color: 'rgba(99, 102, 241, 0.1)' }}
+      android_ripple={{ color: COLORS.primary + '20' }}
     >
-      <LinearGradient
-        colors={['#FFFFFF', '#FAFBFF'] as const}
-        style={styles.card}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      >
+      <View style={styles.card}>
         <View style={styles.header}>
           <View style={styles.titleContainer}>
             <Text style={styles.courseName} numberOfLines={2}>
               {course.name}
             </Text>
-            {course.training_center_name && (
+            {course.training_center_name ? (
               <Text style={styles.centerName} numberOfLines={1}>
                 📍 {course.training_center_name}
               </Text>
-            )}
+            ) : null}
           </View>
           <View style={styles.iconContainer}>
-            <LinearGradient
-              colors={['#6366F1', '#4F46E5'] as const}
-              style={styles.iconCircle}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
+            <View style={styles.iconCircle}>
               <Text style={styles.iconText}>📚</Text>
-            </LinearGradient>
+            </View>
           </View>
         </View>
 
-        {course.course_goal && (
+        {course.course_goal ? (
           <Text style={styles.description} numberOfLines={2}>
             {course.course_goal}
           </Text>
-        )}
+        ) : null}
 
         <View style={styles.footer}>
           <View style={styles.infoRow}>
-            {course.start_date && (
+            {course.start_date ? (
               <View style={styles.infoItem}>
                 <Text style={styles.infoIcon}>📅</Text>
                 <Text style={styles.infoText}>{formatDate(course.start_date)}</Text>
               </View>
-            )}
-            {course.duration_in_days && (
+            ) : null}
+            {course.duration_in_days ? (
               <View style={styles.infoItem}>
                 <Text style={styles.infoIcon}>⏱️</Text>
                 <Text style={styles.infoText}>{course.duration_in_days} يوم</Text>
               </View>
-            )}
+            ) : null}
           </View>
           <View style={styles.actionButton}>
             <Text style={styles.actionText}>عرض التفاصيل</Text>
             <Text style={styles.actionArrow}>◀</Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 }
+
+export const AvailableCourseCard = memo(AvailableCourseCardComponent);
 
 const styles = StyleSheet.create({
   container: {
@@ -107,13 +98,9 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#E0E7FF',
+    borderColor: COLORS.border,
   },
   header: {
     flexDirection: 'row',
@@ -123,19 +110,19 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    marginRight: SPACING.sm,
+    marginEnd: SPACING.sm,
   },
   courseName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: COLORS.text,
     textAlign: 'right',
     lineHeight: 22,
     marginBottom: 4,
   },
   centerName: {
     fontSize: 12,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
     textAlign: 'right',
   },
   iconContainer: {
@@ -148,18 +135,14 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: COLORS.primary,
   },
   iconText: {
     fontSize: 20,
   },
   description: {
     fontSize: 13,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
     textAlign: 'right',
     lineHeight: 20,
     marginBottom: SPACING.sm,
@@ -170,7 +153,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: COLORS.border,
   },
   infoRow: {
     flexDirection: 'row',
@@ -186,7 +169,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
   },
   actionButton: {
     flexDirection: 'row',
@@ -196,10 +179,10 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6366F1',
+    color: COLORS.primary,
   },
   actionArrow: {
     fontSize: 10,
-    color: '#6366F1',
+    color: COLORS.primary,
   },
 });

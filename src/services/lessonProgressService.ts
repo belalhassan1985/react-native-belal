@@ -1,39 +1,72 @@
 import { apiClient } from '../utils/apiClient';
 import {
   TraineeCourse,
-  LectureProgress,
-  LessonProgress,
-  ProgressUpdate,
+  TraineeLectureProgress,
+  TraineeLessonProgress,
+  TraineeCourseProgress,
+  ProgressUpdateRequest,
   ApiResponse,
 } from '../types';
 
+export interface MyCoursesResponse {
+  status: 'success' | 'error';
+  data: TraineeCourse[];
+}
+
+export interface LessonProgressResponse {
+  status: 'success' | 'error';
+  data: TraineeLessonProgress;
+}
+
+export interface LectureProgressResponse {
+  status: 'success' | 'error';
+  data: TraineeLectureProgress;
+}
+
+export interface CourseProgressResponse {
+  status: 'success' | 'error';
+  data: TraineeCourseProgress;
+}
+
 export const lessonProgressService = {
-  async getMyCourses(): Promise<ApiResponse<TraineeCourse[]>> {
-    return apiClient.get<ApiResponse<TraineeCourse[]>>('/lesson-progress/my-courses');
+  /**
+   * Get trainee's enrolled courses with progress
+   * GET /lesson-progress/my-courses
+   */
+  async getMyCourses(): Promise<MyCoursesResponse> {
+    const response = await apiClient.get<MyCoursesResponse>('/lesson-progress/my-courses');
+    return response;
   },
 
-  async getCourseProgress(courseId: number): Promise<ApiResponse<{
-    course: TraineeCourse;
-    lectures: LectureProgress[];
-    lessons: LessonProgress[];
-  }>> {
-    return apiClient.get<ApiResponse<{
-    course: TraineeCourse;
-    lectures: LectureProgress[];
-    lessons: LessonProgress[];
-    progress_percentage: number;
-  }>>(`/lesson-progress/course/${courseId}`);
+  /**
+   * Get course progress for enrolled course
+   * GET /lesson-progress/course/{courseId}
+   */
+  async getCourseProgress(courseId: number): Promise<CourseProgressResponse> {
+    return apiClient.get<CourseProgressResponse>(`/lesson-progress/course/${courseId}`);
   },
 
-  async getLectureProgress(lectureId: number): Promise<ApiResponse<LectureProgress>> {
-    return apiClient.get<ApiResponse<LectureProgress>>(`/lesson-progress/lecture/${lectureId}`);
+  /**
+   * Get lecture progress
+   * GET /lesson-progress/lecture/{lectureId}
+   */
+  async getLectureProgress(lectureId: number): Promise<LectureProgressResponse> {
+    return apiClient.get<LectureProgressResponse>(`/lesson-progress/lecture/${lectureId}`);
   },
 
-  async getLessonProgress(lessonId: number): Promise<ApiResponse<LessonProgress>> {
-    return apiClient.get<ApiResponse<LessonProgress>>(`/lesson-progress/lesson/${lessonId}`);
+  /**
+   * Get lesson progress
+   * GET /lesson-progress/lesson/{lessonId}
+   */
+  async getLessonProgress(lessonId: number): Promise<LessonProgressResponse> {
+    return apiClient.get<LessonProgressResponse>(`/lesson-progress/lesson/${lessonId}`);
   },
 
-  async updateProgress(updates: ProgressUpdate[]): Promise<ApiResponse<void>> {
-    return apiClient.post<ApiResponse<void>>('/lesson-progress/update', { updates });
+  /**
+   * Update lesson progress
+   * POST /lesson-progress/update
+   */
+  async updateProgress(update: ProgressUpdateRequest): Promise<ApiResponse<void>> {
+    return apiClient.post<ApiResponse<void>>('/lesson-progress/update', update);
   },
 };

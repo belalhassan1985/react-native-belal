@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
     RefreshControl,
     ScrollView,
@@ -23,21 +23,25 @@ export default function CompletedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const isLoadingRef = useRef(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (isLoadingRef.current) return;
+    
+    isLoadingRef.current = true;
     try {
       setError(null);
       const courses = await courseService.getMyCourses();
       const coursesArray = Array.isArray(courses) ? courses : [];
       setMyCourses(coursesArray);
     } catch (err: any) {
-      console.error('[Completed] Error loading courses:', err);
       setError(err.message || 'فشل تحميل البيانات');
       setMyCourses([]);
     } finally {
       setIsLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();

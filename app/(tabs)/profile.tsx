@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  StatusBar,
   Image,
   TouchableOpacity,
   Alert,
@@ -12,22 +11,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/hooks/useAuth';
 import { userService } from '../../src/services/userService';
 import { UserProfile } from '../../src/types';
-import { SPACING, BORDER_RADIUS } from '../../src/constants';
+import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants';
 
-const getStringValue = (value: any): string => {
+const getStringValue = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return String(value);
   if (typeof value === 'object' && value !== null) {
-    return value.name ?? value.title ?? value.label ?? '';
+    return (value as Record<string, unknown>).name as string ?? (value as Record<string, unknown>).title as string ?? '';
   }
   return '';
 };
 
-const getDisplayValue = (value: any): string => {
+const getDisplayValue = (value: unknown): string => {
   const str = getStringValue(value);
   return str || 'غير متوفر';
 };
@@ -51,22 +51,31 @@ const getGenderArabic = (gender: string | undefined): string => {
 };
 
 export default function ProfileScreen() {
-  const { logout } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const { logout, profile: authProfile } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(authProfile);
+  const [isLoading, setIsLoading] = useState(!authProfile);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (!authProfile) {
+      loadProfile();
+    }
+  }, [authProfile]);
+
+  useEffect(() => {
+    if (authProfile) {
+      setProfile(authProfile);
+    }
+  }, [authProfile]);
 
   const loadProfile = async () => {
     setIsLoading(true);
     try {
       const data = await userService.getProfile();
       setProfile(data);
-    } catch (error) {
-      console.error('Failed to load profile:', error);
+    } catch {
+      // Keep existing profile if fetch fails
     } finally {
       setIsLoading(false);
     }
@@ -93,9 +102,8 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>جاري التحميل...</Text>
         </View>
       </SafeAreaView>
@@ -105,7 +113,6 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
         <View style={styles.centerContainer}>
           <Text style={styles.errorEmoji}>⚠️</Text>
           <Text style={styles.errorText}>فشل تحميل البيانات</Text>
@@ -130,16 +137,17 @@ export default function ProfileScreen() {
     profile.role === 'center_manager' ? 'مدير المركز' :
     getDisplayValue(profile.role);
 
+  const initials = profile.nickname?.charAt(0) || profile.first_name?.charAt(0) || '؟';
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
-          colors={['#EEF2FF', '#F8FAFC']}
+          colors={[COLORS.primary, COLORS.primaryDark] as readonly [string, string, ...string[]]}
           style={styles.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -154,23 +162,15 @@ export default function ProfileScreen() {
                 />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarText}>
-                    {profile.nickname?.charAt(0) || profile.first_name?.charAt(0) || '?'}
-                  </Text>
+                  <Text style={styles.avatarText}>{initials}</Text>
                 </View>
               )}
-              <View style={styles.onlineIndicator} />
             </View>
             <Text style={styles.fullName}>{fullName || 'غير متوفر'}</Text>
             <Text style={styles.nickname}>{getDisplayValue(profile.nickname)}</Text>
-            <LinearGradient
-              colors={['#3B82F6', '#2563EB']}
-              style={styles.roleBadge}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
+            <View style={styles.roleBadge}>
               <Text style={styles.roleBadgeText}>{roleLabel}</Text>
-            </LinearGradient>
+            </View>
           </View>
         </LinearGradient>
 
@@ -189,7 +189,7 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>المعلومات الإدارية</Text>
             <View style={styles.infoCard}>
-              <InfoRow icon="🗺️" label="المحافظة" value={getDisplayValue(profile.state)} />
+              <InfoRow icon="🗺️" label="المحافظة" value={getDisplayValue(profile.state?.name)} />
               <InfoRow icon="🏢" label="مركز التدريب" value={getDisplayValue(profile.training_center)} />
               {profile.agency && profile.agency !== 'غير متوفر' && (
                 <InfoRow icon="🏛️" label="الوكالة" value={getDisplayValue(profile.agency)} />
@@ -208,13 +208,31 @@ export default function ProfileScreen() {
           </View>
 
           <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push('/edit-profile')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.editIcon}>✏️</Text>
+            <Text style={styles.editText}>تعديل الملف الشخصي</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.passwordButton}
+            onPress={() => router.push('/reset-password')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.passwordIcon}>🔑</Text>
+            <Text style={styles.passwordText}>تغيير كلمة المرور</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
             onPress={handleLogout}
             disabled={isLoggingOut}
             activeOpacity={0.8}
           >
             {isLoggingOut ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={COLORS.text} />
             ) : (
               <>
                 <Text style={styles.logoutIcon}>🚪</Text>
@@ -237,7 +255,7 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
         <Text style={styles.infoIcon}>{icon}</Text>
         <Text style={styles.infoLabel}>{label}</Text>
       </View>
-      <Text style={styles.infoValue}>{value}</Text>
+      <Text style={styles.infoValue} numberOfLines={2}>{value}</Text>
     </View>
   );
 }
@@ -245,7 +263,7 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
@@ -274,103 +292,74 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginBottom: SPACING.md,
-    position: 'relative',
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     borderWidth: 4,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderColor: COLORS.surface,
   },
   avatarPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#3B82F6',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderColor: COLORS.surface,
   },
   avatarText: {
-    fontSize: 48,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#10B981',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: COLORS.text,
   },
   fullName: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1F2937',
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
     textAlign: 'center',
     marginBottom: 4,
   },
   nickname: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   roleBadge: {
+    backgroundColor: COLORS.surface,
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
   },
   roleBadgeText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   content: {
     paddingHorizontal: SPACING.lg,
+    marginTop: -SPACING.md,
   },
   section: {
     marginTop: SPACING.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
     textAlign: 'right',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
+    marginStart: SPACING.xs,
   },
   infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.border,
   },
   infoRow: {
     flexDirection: 'row',
@@ -379,7 +368,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: COLORS.border,
   },
   infoLeft: {
     flexDirection: 'row',
@@ -387,56 +376,90 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoIcon: {
-    fontSize: 20,
-    marginLeft: SPACING.sm,
+    fontSize: 18,
+    marginEnd: SPACING.sm,
   },
   infoLabel: {
     fontSize: 14,
-    color: '#6B7280',
-    flex: 1,
+    color: COLORS.textSecondary,
   },
   infoValue: {
     fontSize: 14,
-    color: '#1F2937',
-    fontWeight: '600',
-    textAlign: 'right',
+    color: COLORS.text,
+    fontWeight: '500',
+    textAlign: 'left',
     flex: 1,
   },
-  logoutButton: {
+  editButton: {
     marginTop: SPACING.xl,
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.surface,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
     gap: SPACING.sm,
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  editIcon: {
+    fontSize: 18,
+  },
+  editText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  passwordButton: {
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  passwordIcon: {
+    fontSize: 18,
+  },
+  passwordText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  logoutButton: {
+    marginTop: SPACING.xl,
+    backgroundColor: COLORS.error,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.sm,
   },
   logoutButtonDisabled: {
     opacity: 0.7,
   },
   logoutIcon: {
-    fontSize: 20,
+    fontSize: 18,
   },
   logoutText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: COLORS.text,
   },
   version: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: COLORS.textMuted,
     textAlign: 'center',
     marginTop: SPACING.xl,
   },
   loadingText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
     marginTop: SPACING.md,
   },
   errorEmoji: {
@@ -445,7 +468,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#EF4444',
+    color: COLORS.error,
     textAlign: 'center',
     marginBottom: SPACING.md,
   },
@@ -454,7 +477,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontSize: 16,
-    color: '#3B82F6',
+    color: COLORS.primary,
     fontWeight: '600',
   },
 });

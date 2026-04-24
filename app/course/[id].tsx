@@ -1,54 +1,57 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    Image,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BORDER_RADIUS, SPACING } from '../../src/constants';
 import { courseService } from '../../src/services/courseService';
-import { Course, CourseLecture, CourseProgress, LectureProgress } from '../../src/types';
-
-const { width } = Dimensions.get('window');
+import { joinRequestService } from '../../src/services/joinRequestService';
+import { Course, CourseLecture, CourseProgress, CourseJoinStatus } from '../../src/types';
+import { COLORS, BORDER_RADIUS, SPACING, FONT_SIZE } from '../../src/constants';
 
 export default function CourseDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const courseId = Number(id);
   const router = useRouter();
+
+  const courseId = Number(id) || 0;
 
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null);
   const [courseDetails, setCourseDetails] = useState<Course | null>(null);
   const [lectures, setLectures] = useState<CourseLecture[]>([]);
+  const [joinStatus, setJoinStatus] = useState<CourseJoinStatus>({ has_request: false });
   const [isLoading, setIsLoading] = useState(true);
+  const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedLectures, setExpandedLectures] = useState<Set<number>>(new Set());
+  const isLoadingRef = useRef(false);
 
-  useEffect(() => {
-    loadCourseData();
-  }, [courseId]);
-
-  const loadCourseData = async () => {
-    if (!courseId) {
+  const loadCourseData = useCallback(async () => {
+    const cid = Number(id);
+    
+    if (!cid || isNaN(cid)) {
       setError('معرف الدورة غير صالح');
       setIsLoading(false);
       return;
     }
 
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
+    
     try {
       setError(null);
-      
-      const [progressResponse, detailsResponse, lecturesResponse] = await Promise.allSettled([
-        courseService.getCourseProgress(courseId),
-        courseService.getCourseById(courseId),
-        courseService.getCourseLecturesAndLessons(courseId),
+
+      const [progressResponse, detailsResponse, lecturesResponse, statusResponse] = await Promise.allSettled([
+        courseService.getCourseProgress(cid),
+        courseService.getCourse(cid),
+        courseService.getCourseLecturesAndLessons(cid),
+        joinRequestService.getCourseStatus(cid),
       ]);
 
       if (progressResponse.status === 'fulfilled' && progressResponse.value?.data) {
@@ -64,13 +67,50 @@ export default function CourseDetailsScreen() {
         setLectures(Array.isArray(lecturesData) ? lecturesData : []);
       }
 
-    } catch (err: any) {
-      console.error('[CourseDetails] Error:', err);
-      setError(err.message || 'فشل تحميل البيانات');
+      if (statusResponse.status === 'fulfilled') {
+        setJoinStatus(joinRequestService.parseCourseStatus(statusResponse.value));
+      }
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'فشل تحميل البيانات';
+      setError(message);
     } finally {
       setIsLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [id]);
+
+  const loadCourseDataRef = useRef(loadCourseData);
+  useEffect(() => {
+    loadCourseDataRef.current = loadCourseData;
+  }, [loadCourseData]);
+
+  useEffect(() => {
+    loadCourseData();
+  }, []);
+
+  const handleJoinRequest = useCallback(async () => {
+    const cid = Number(id) || 0;
+    if (!cid || isJoining) return;
+
+    setIsJoining(true);
+    try {
+      const response = await joinRequestService.createRequest(courseId);
+      if (response.status === 'success' && response.data) {
+        setJoinStatus({
+          has_request: true,
+          request_id: response.data.id,
+          status: response.data.status,
+        });
+        Alert.alert('نجاح', 'تم إرسال طلب الانضمام بنجاح');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'فشل إرسال الطلب';
+      Alert.alert('خطأ', message);
+    } finally {
+      setIsJoining(false);
+    }
+  }, [courseId, isJoining]);
 
   const toggleLecture = (lectureId: number) => {
     setExpandedLectures(prev => {
@@ -84,7 +124,7 @@ export default function CourseDetailsScreen() {
     });
   };
 
-  const formatDate = (dateStr: string | undefined) => {
+const formatDate = (dateStr: string | undefined | null) => {
     if (!dateStr) return 'غير محدد';
     try {
       return new Date(dateStr).toLocaleDateString('ar-IQ', {
@@ -113,16 +153,15 @@ export default function CourseDetailsScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/home' as any)} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>تفاصيل الدورة</Text>
           <View style={styles.backButton} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>جاري التحميل...</Text>
         </View>
       </SafeAreaView>
@@ -132,9 +171,8 @@ export default function CourseDetailsScreen() {
   if (error || (!courseProgress && !courseDetails)) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/home' as any)} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>تفاصيل الدورة</Text>
@@ -157,10 +195,8 @@ export default function CourseDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
-      
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/home' as any)} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>تفاصيل الدورة</Text>
@@ -180,36 +216,39 @@ export default function CourseDetailsScreen() {
           />
         )}
 
-        <LinearGradient
-          colors={isCompleted ? ['#D1FAE5', '#F8FAFC'] as const : ['#EEF2FF', '#F8FAFC'] as const}
-          style={styles.heroGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.heroContent}>
-            <View style={styles.titleRow}>
-              <Text style={styles.courseName}>{courseName}</Text>
-              {isCompleted && (
-                <View style={styles.completedBadge}>
-                  <Text style={styles.completedBadgeText}>✓</Text>
-                </View>
-              )}
-            </View>
-
-            {courseDetails?.category_name && (
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>📚 {courseDetails.category_name}</Text>
-              </View>
-            )}
-
-            {courseDetails?.training_center_name && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoIcon}>🏢</Text>
-                <Text style={styles.infoText}>{courseDetails.training_center_name}</Text>
+        <View style={styles.heroSection}>
+          <View style={styles.titleRow}>
+            <Text style={styles.courseName}>{courseName}</Text>
+            {isCompleted && (
+              <View style={styles.completedBadge}>
+                <Text style={styles.completedBadgeText}>✓</Text>
               </View>
             )}
           </View>
-        </LinearGradient>
+
+          {courseDetails?.category_name && (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>📚 {courseDetails.category_name}</Text>
+            </View>
+          )}
+
+          {courseDetails?.training_center_name && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoIcon}>🏢</Text>
+              <Text style={styles.infoText}>{courseDetails.training_center_name}</Text>
+            </View>
+          )}
+        </View>
+
+        {!courseProgress && (
+          <View style={styles.section}>
+            <JoinCTA
+              status={joinStatus}
+              isLoading={isJoining}
+              onJoin={handleJoinRequest}
+            />
+          </View>
+        )}
 
         {courseProgress && (
           <View style={styles.section}>
@@ -217,18 +256,16 @@ export default function CourseDetailsScreen() {
             <View style={styles.progressCard}>
               <View style={styles.progressHeader}>
                 <Text style={styles.progressValue}>{courseProgress.progress_percentage.toFixed(0)}%</Text>
-                <View style={styles.progressStats}>
-                  <Text style={styles.progressStatText}>
-                    {courseProgress.completed_lectures} من {courseProgress.total_lectures} محاضرة
-                  </Text>
-                </View>
+                <Text style={styles.progressStatText}>
+                  {courseProgress.completed_lectures} من {courseProgress.total_lectures} محاضرة
+                </Text>
               </View>
               <View style={styles.progressBarContainer}>
-                <LinearGradient
-                  colors={isCompleted ? ['#10B981', '#059669'] as const : ['#3B82F6', '#2563EB'] as const}
-                  style={[styles.progressBarFill, { width: `${courseProgress.progress_percentage}%` }]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { width: `${courseProgress.progress_percentage}%` }
+                  ]} 
                 />
               </View>
             </View>
@@ -242,223 +279,178 @@ export default function CourseDetailsScreen() {
               {courseDetails.course_goal && (
                 <InfoItem icon="🎯" label="الهدف" value={courseDetails.course_goal} multiline />
               )}
-              {courseDetails.course_conditions && (
-                <InfoItem icon="📋" label="الشروط" value={courseDetails.course_conditions} multiline />
-              )}
-              {courseDetails.beneficiaries && (
-                <InfoItem icon="👥" label="المستفيدون" value={courseDetails.beneficiaries} />
-              )}
-              {courseDetails.duration_in_days && (
+              <InfoItem icon="📅" label="تاريخ البداية" value={formatDate(courseDetails.start_date)} />
+              <InfoItem icon="📆" label="تاريخ النهاية" value={formatDate(courseDetails.end_date)} />
+              {courseDetails.duration_in_days ? (
                 <InfoItem icon="⏱️" label="المدة" value={`${courseDetails.duration_in_days} يوم`} />
-              )}
-              {courseDetails.max_trainees && (
-                <InfoItem icon="👨‍🎓" label="الحد الأقصى" value={`${courseDetails.max_trainees} متدرب`} />
-              )}
-              {courseDetails.trainees_count !== undefined && (
-                <InfoItem icon="✅" label="المسجلون" value={`${courseDetails.trainees_count} متدرب`} />
-              )}
+              ) : null}
+              {courseDetails.trainees_count ? (
+                <InfoItem icon="👥" label="عدد المتدربين" value={String(courseDetails.trainees_count)} />
+              ) : null}
             </View>
           </View>
         )}
 
-        {courseDetails && (
+        {remainingDays !== null && remainingDays > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>التواريخ</Text>
-            <View style={styles.datesCard}>
-              <View style={styles.dateItem}>
-                <View style={styles.dateIconContainer}>
-                  <LinearGradient
-                    colors={['#10B981', '#059669'] as const}
-                    style={styles.dateIconGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.dateIcon}>📅</Text>
-                  </LinearGradient>
-                </View>
-                <View style={styles.dateInfo}>
-                  <Text style={styles.dateLabel}>تاريخ البدء</Text>
-                  <Text style={styles.dateValue}>{formatDate(courseDetails.start_date)}</Text>
-                </View>
-              </View>
-              <View style={styles.dateItem}>
-                <View style={styles.dateIconContainer}>
-                  <LinearGradient
-                    colors={['#EF4444', '#DC2626'] as const}
-                    style={styles.dateIconGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.dateIcon}>🏁</Text>
-                  </LinearGradient>
-                </View>
-                <View style={styles.dateInfo}>
-                  <Text style={styles.dateLabel}>تاريخ الانتهاء</Text>
-                  <Text style={styles.dateValue}>{formatDate(courseDetails.end_date)}</Text>
-                </View>
-              </View>
-              {remainingDays !== null && remainingDays > 0 && (
-                <View style={styles.remainingDaysCard}>
-                  <Text style={styles.remainingDaysText}>
-                    ⏳ متبقي {remainingDays} يوم
-                  </Text>
-                </View>
-              )}
+            <View style={styles.remainingDaysCard}>
+              <Text style={styles.remainingDaysText}>
+                🎯 متبقي {remainingDays} يوم على انتهاء الدورة
+              </Text>
             </View>
           </View>
         )}
 
-        {courseProgress && courseProgress.lectures.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>المحاضرات ({courseProgress.lectures.length})</Text>
-            {courseProgress.lectures.map((lecture, index) => (
-              <LectureCard
-                key={lecture.lecture_id}
-                lecture={lecture}
-                index={index}
-                isExpanded={expandedLectures.has(lecture.lecture_id)}
-                onToggle={() => toggleLecture(lecture.lecture_id)}
-              />
-            ))}
-          </View>
-        )}
-
-        {lectures.length > 0 && !courseProgress && (
+        {lectures.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>المحاضرات ({lectures.length})</Text>
-            {lectures.map((lecture, index) => (
-              <SimpleLectureCard key={lecture.id} lecture={lecture} index={index} />
-            ))}
+            {courseProgress && (
+              <Text style={styles.sectionSubtitle}>
+                {courseProgress.completed_lectures} من {courseProgress.total_lectures} محاضرة مكتملة
+              </Text>
+            )}
+            {lectures.map((lecture, index) => {
+              const isExpanded = expandedLectures.has(lecture.id);
+              const lectureProgress = courseProgress?.lectures?.find(l => l.lecture_id === lecture.id);
+
+              return (
+                <View key={lecture.id} style={styles.lectureCard}>
+                  <TouchableOpacity
+                    style={styles.lectureHeader}
+                    onPress={() => toggleLecture(lecture.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.lectureLeft}>
+                      <View style={[
+                        styles.lectureNumber,
+                        lectureProgress?.progress_percentage === 100 && styles.lectureNumberCompleted
+                      ]}>
+                        <Text style={[
+                          styles.lectureNumberText,
+                          lectureProgress?.progress_percentage === 100 && styles.lectureNumberTextCompleted
+                        ]}>
+                          {index + 1}
+                        </Text>
+                      </View>
+                      <View style={styles.lectureInfo}>
+                        <Text style={styles.lectureName}>{lecture.title}</Text>
+                        {lectureProgress ? (
+                          <View style={styles.lectureProgressRow}>
+                            <View style={styles.lectureProgressBar}>
+                              <View style={[
+                                styles.lectureProgressFill,
+                                { width: `${lectureProgress.progress_percentage}%` }
+                              ]} />
+                            </View>
+                            <Text style={styles.lectureStats}>
+                              {lectureProgress.completed_lessons}/{lectureProgress.total_lessons}
+                            </Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.lectureStats}>لم يبدأ</Text>
+                        )}
+                      </View>
+                    </View>
+                    <Text style={styles.expandIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+
+                  {isExpanded && lectureProgress && lectureProgress.lessons.length > 0 && (
+                    <View style={styles.lessonsContainer}>
+                      {lectureProgress.lessons.map((lessonProgress) => (
+                        <TouchableOpacity
+                          key={lessonProgress.lesson_id}
+                          style={styles.lessonRow}
+                          onPress={() => router.push(`/lesson/${lessonProgress.lesson_id}`)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.lessonLeft}>
+                            <View style={[
+                              styles.lessonCheck,
+                              lessonProgress.is_completed && styles.lessonCheckCompleted
+                            ]}>
+                              {lessonProgress.is_completed && (
+                                <Text style={styles.lessonCheckIcon}>✓</Text>
+                              )}
+                            </View>
+                            <Text style={styles.lessonName}>
+                              {lessonProgress.lesson_name || `درس #${lessonProgress.lesson_id}`}
+                            </Text>
+                          </View>
+                          <Text style={styles.lessonArrow}>◀</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </View>
         )}
+
+        {lectures.length === 0 && (
+          <View style={styles.section}>
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>لا توجد محاضرات متاحة</Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-interface InfoItemProps {
-  icon: string;
-  label: string;
-  value: string;
-  multiline?: boolean;
-}
+function JoinCTA({ status, isLoading, onJoin }: {
+  status: CourseJoinStatus;
+  isLoading: boolean;
+  onJoin: () => void;
+}) {
+  if (status.has_request && status.status) {
+    const statusConfig = {
+      pending: { label: 'قيد المراجعة', color: COLORS.warning, bg: COLORS.warning + '20' },
+      accepted: { label: 'تم القبول', color: COLORS.success, bg: COLORS.success + '20' },
+      rejected: { label: 'مرفوض', color: COLORS.error, bg: COLORS.error + '20' },
+    }[status.status] ?? { label: 'غير معروف', color: COLORS.textMuted, bg: COLORS.surface };
 
-function InfoItem({ icon, label, value, multiline }: InfoItemProps) {
-  return (
-    <View style={[styles.infoItem, multiline && styles.infoItemMultiline]}>
-      <View style={styles.infoItemHeader}>
-        <Text style={styles.infoItemIcon}>{icon}</Text>
-        <Text style={styles.infoItemLabel}>{label}</Text>
+    return (
+      <View style={styles.infoCard}>
+        <View style={[styles.statusBadgeContainer, { backgroundColor: statusConfig.bg }]}>
+          <Text style={[styles.statusLabel, { color: statusConfig.color }]}>{statusConfig.label}</Text>
+        </View>
       </View>
-      <Text style={[styles.infoItemValue, multiline && styles.infoItemValueMultiline]}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-interface LectureCardProps {
-  lecture: LectureProgress;
-  index: number;
-  isExpanded: boolean;
-  onToggle: () => void;
-}
-
-function LectureCard({ lecture, index, isExpanded, onToggle }: LectureCardProps) {
-  const isCompleted = lecture.progress_percentage === 100;
-  const hasLessons = lecture.lessons && lecture.lessons.length > 0;
+    );
+  }
 
   return (
-    <View style={styles.lectureCard}>
-      <TouchableOpacity
-        style={styles.lectureHeader}
-        onPress={onToggle}
-        activeOpacity={0.7}
-      >
-        <View style={styles.lectureLeft}>
-          <View style={[
-            styles.lectureNumber,
-            isCompleted && styles.lectureNumberCompleted
-          ]}>
-            <Text style={[
-              styles.lectureNumberText,
-              isCompleted && styles.lectureNumberTextCompleted
-            ]}>
-              {index + 1}
-            </Text>
-          </View>
-          <View style={styles.lectureInfo}>
-            <Text style={styles.lectureName}>{lecture.lecture_name}</Text>
-            {hasLessons && (
-              <Text style={styles.lectureStats}>
-                {lecture.completed_lessons} من {lecture.total_lessons} دروس
-              </Text>
-            )}
-          </View>
-        </View>
-        <View style={styles.lectureRight}>
-          {isCompleted ? (
-            <View style={styles.completedIcon}>
-              <Text style={styles.completedIconText}>✓</Text>
-            </View>
-          ) : (
-            <View style={styles.progressCircle}>
-              <Text style={styles.progressCircleText}>
-                {lecture.progress_percentage.toFixed(0)}%
-              </Text>
-            </View>
-          )}
-          {hasLessons && (
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '◀'}</Text>
-          )}
-        </View>
-      </TouchableOpacity>
-
-      {isExpanded && hasLessons && (
-        <View style={styles.lessonsContainer}>
-          {lecture.lessons.map((lesson, lessonIndex) => (
-            <View key={lesson.lesson_id} style={styles.lessonItem}>
-              <View style={styles.lessonLeft}>
-                <View style={[
-                  styles.lessonDot,
-                  lesson.is_completed && styles.lessonDotCompleted
-                ]} />
-                <Text style={[
-                  styles.lessonName,
-                  lesson.is_completed && styles.lessonNameCompleted
-                ]}>
-                  {lesson.lesson_name}
-                </Text>
-              </View>
-              {lesson.is_completed && (
-                <View style={styles.lessonCompletedBadge}>
-                  <Text style={styles.lessonCompletedText}>✓</Text>
-                </View>
-              )}
-            </View>
-          ))}
-        </View>
+    <TouchableOpacity
+      style={styles.joinButton}
+      onPress={onJoin}
+      disabled={isLoading}
+      activeOpacity={0.8}
+    >
+      {isLoading ? (
+        <ActivityIndicator size="small" color={COLORS.text} />
+      ) : (
+        <>
+          <Text style={styles.joinButtonIcon}>📝</Text>
+          <Text style={styles.joinButtonText}>طلب الانضمام</Text>
+        </>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
-interface SimpleLectureCardProps {
-  lecture: CourseLecture;
-  index: number;
-}
-
-function SimpleLectureCard({ lecture, index }: SimpleLectureCardProps) {
+function InfoItem({ icon, label, value, multiline }: { icon: string; label: string; value: string; multiline?: boolean }) {
+  const safeValue = value ?? '';
+  if (!safeValue) return null;
+  
   return (
-    <View style={styles.simpleLectureCard}>
-      <View style={styles.lectureNumber}>
-        <Text style={styles.lectureNumberText}>{index + 1}</Text>
-      </View>
-      <View style={styles.simpleLectureInfo}>
-        <Text style={styles.lectureName}>{lecture.title}</Text>
-        {lecture.description && (
-          <Text style={styles.lectureDescription}>{lecture.description}</Text>
-        )}
+    <View style={styles.infoRowItem}>
+      <Text style={styles.infoIcon}>{icon}</Text>
+      <View style={styles.infoContent}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={[styles.infoValue, multiline && styles.infoValueMultiline]}>{safeValue}</Text>
       </View>
     </View>
   );
@@ -467,17 +459,16 @@ function SimpleLectureCard({ lecture, index }: SimpleLectureCardProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     width: 40,
@@ -487,12 +478,12 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 24,
-    color: '#1F2937',
+    color: COLORS.text,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: '600',
+    color: COLORS.text,
   },
   scrollView: {
     flex: 1,
@@ -503,64 +494,51 @@ const styles = StyleSheet.create({
   courseImage: {
     width: '100%',
     height: 200,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: COLORS.surface,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  heroGradient: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.xl,
-  },
-  heroContent: {
-    gap: SPACING.sm,
+  heroSection: {
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   courseName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
     flex: 1,
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1F2937',
-    textAlign: 'right',
-    lineHeight: 32,
+    marginEnd: SPACING.sm,
   },
   completedBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#10B981',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
   completedBadgeText: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontWeight: '700',
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: 'bold',
   },
   categoryBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.primaryLight + '20',
+    paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.sm,
+    marginBottom: SPACING.sm,
   },
   categoryText: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '600',
+    fontSize: 14,
+    color: COLORS.primary,
   },
   infoRow: {
     flexDirection: 'row',
@@ -568,319 +546,179 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   infoIcon: {
-    fontSize: 16,
+    fontSize: 14,
   },
   infoText: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'right',
+    color: COLORS.textSecondary,
   },
   section: {
-    paddingHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
+    padding: SPACING.lg,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-    textAlign: 'right',
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
     marginBottom: SPACING.md,
   },
   progressCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.border,
   },
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   progressValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1F2937',
-  },
-  progressStats: {
-    alignItems: 'flex-end',
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.primary,
   },
   progressStatText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
   },
   progressBarContainer: {
-    height: 12,
-    backgroundColor: '#E5E7EB',
-    borderRadius: BORDER_RADIUS.full,
+    height: 8,
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primary,
+    borderRadius: 4,
   },
   infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: SPACING.md,
+    borderColor: COLORS.border,
   },
-  infoItem: {
-    paddingBottom: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  infoItemMultiline: {
-    paddingBottom: SPACING.md,
-  },
-  infoItemHeader: {
+  infoRowItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    marginBottom: 4,
+    alignItems: 'flex-start',
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  infoItemIcon: {
-    fontSize: 16,
+  infoContent: {
+    flex: 1,
+    marginStart: SPACING.sm,
   },
-  infoItemLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '600',
+  infoLabel: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginBottom: 2,
   },
-  infoItemValue: {
+  infoValue: {
     fontSize: 14,
-    color: '#1F2937',
-    textAlign: 'right',
+    color: COLORS.text,
+  },
+  infoValueMultiline: {
     lineHeight: 20,
   },
-  infoItemValueMultiline: {
-    lineHeight: 22,
-  },
-  datesCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: SPACING.md,
-  },
-  dateItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  dateIconContainer: {
-    width: 50,
-    height: 50,
-  },
-  dateIconGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dateIcon: {
-    fontSize: 24,
-  },
-  dateInfo: {
-    flex: 1,
-  },
-  dateLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 2,
-    textAlign: 'right',
-  },
-  dateValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1F2937',
-    textAlign: 'right',
-  },
   remainingDaysCard: {
-    backgroundColor: '#FEF3C7',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.warning + '20',
+    padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
   },
   remainingDaysText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#92400E',
+    fontWeight: '600',
+    color: COLORS.warning,
   },
   lectureCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.xl,
-    marginBottom: SPACING.md,
-    overflow: 'hidden',
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.border,
+    overflow: 'hidden',
   },
   lectureHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: SPACING.md,
   },
   lectureLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: SPACING.md,
   },
   lectureNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#EEF2FF',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primaryLight + '30',
     alignItems: 'center',
     justifyContent: 'center',
+    marginEnd: SPACING.sm,
   },
   lectureNumberCompleted: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: COLORS.successLight + '30',
   },
   lectureNumberText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#3B82F6',
+    color: COLORS.primary,
   },
   lectureNumberTextCompleted: {
-    color: '#10B981',
+    color: COLORS.success,
   },
   lectureInfo: {
     flex: 1,
   },
   lectureName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: COLORS.text,
     textAlign: 'right',
-    marginBottom: 2,
   },
   lectureStats: {
     fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'right',
-  },
-  lectureRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  completedIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#10B981',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  completedIconText: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  progressCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#EEF2FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#3B82F6',
-  },
-  progressCircleText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#3B82F6',
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   expandIcon: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: COLORS.textMuted,
   },
-  lessonsContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-  },
-  lessonItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  emptyCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.xl,
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-  },
-  lessonLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: SPACING.md,
-  },
-  lessonDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D1D5DB',
-  },
-  lessonDotCompleted: {
-    backgroundColor: '#10B981',
-  },
-  lessonName: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'right',
-    flex: 1,
-  },
-  lessonNameCompleted: {
-    color: '#1F2937',
-    fontWeight: '600',
-  },
-  lessonCompletedBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lessonCompletedText: {
-    fontSize: 10,
-    color: '#10B981',
-    fontWeight: '700',
-  },
-  simpleLectureCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.xl,
-    marginBottom: SPACING.md,
-    padding: SPACING.md,
-    flexDirection: 'row',
-    gap: SPACING.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.border,
   },
-  simpleLectureInfo: {
+  emptyText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
+  loadingContainer: {
     flex: 1,
-  },
-  lectureDescription: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'right',
-    marginTop: 4,
-    lineHeight: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
     marginTop: SPACING.md,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
   },
   errorEmoji: {
     fontSize: 48,
@@ -888,7 +726,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#EF4444',
+    color: COLORS.error,
     textAlign: 'center',
     marginBottom: SPACING.md,
   },
@@ -897,7 +735,111 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontSize: 16,
-    color: '#3B82F6',
+    color: COLORS.primary,
     fontWeight: '600',
+  },
+  bottomSpacer: {
+    height: SPACING.xl,
+  },
+  joinButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+  },
+  joinButtonIcon: {
+    fontSize: 18,
+  },
+  joinButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  statusBadgeContainer: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+  },
+  statusLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sectionSubtitle: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+  },
+  lectureProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: SPACING.sm,
+  },
+  lectureProgressBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  lectureProgressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 2,
+  },
+  lessonsContainer: {
+    paddingTop: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    marginTop: SPACING.sm,
+  },
+  lessonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  lessonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  lessonCheck: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginEnd: SPACING.sm,
+  },
+  lessonCheckCompleted: {
+    backgroundColor: COLORS.success,
+    borderColor: COLORS.success,
+  },
+  lessonCheckIcon: {
+    fontSize: 10,
+    color: COLORS.text,
+    fontWeight: '700',
+  },
+  lessonName: {
+    flex: 1,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.text,
+    textAlign: 'right',
+  },
+  lessonArrow: {
+    fontSize: 10,
+    color: COLORS.primary,
+    marginStart: SPACING.sm,
   },
 });

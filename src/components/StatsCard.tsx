@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SPACING, BORDER_RADIUS } from '../constants';
+import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZE } from '../constants';
 
 interface StatsCardProps {
   title: string;
@@ -11,10 +11,11 @@ interface StatsCardProps {
   gradientColors: string[];
 }
 
-export function StatsCard({ title, value, subtitle, icon, gradientColors }: StatsCardProps) {
+function StatsCardComponent({ title, value, subtitle, icon, gradientColors }: StatsCardProps) {
+  const colors = gradientColors as unknown as readonly [string, string, ...string[]];
   return (
     <LinearGradient
-      colors={gradientColors}
+      colors={colors}
       style={styles.card}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -24,10 +25,12 @@ export function StatsCard({ title, value, subtitle, icon, gradientColors }: Stat
       </View>
       <Text style={styles.value}>{value}</Text>
       <Text style={styles.title}>{title}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </LinearGradient>
   );
 }
+
+export const StatsCard = memo(StatsCardComponent);
 
 const styles = StyleSheet.create({
   card: {
@@ -35,41 +38,36 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     minHeight: 140,
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.sm,
   },
   icon: {
-    fontSize: 24,
+    fontSize: 22,
   },
   value: {
-    fontSize: 32,
+    fontSize: FONT_SIZE.xxl,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: COLORS.text,
     textAlign: 'right',
     marginBottom: 4,
   },
   title: {
-    fontSize: 14,
+    fontSize: FONT_SIZE.sm,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.text,
     textAlign: 'right',
     opacity: 0.95,
   },
   subtitle: {
-    fontSize: 11,
-    color: '#FFFFFF',
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.text,
     textAlign: 'right',
     opacity: 0.8,
     marginTop: 2,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -28,17 +28,18 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const isLoadingRef = useRef(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (isLoadingRef.current) return;
+    
+    isLoadingRef.current = true;
     try {
       setError(null);
       const [myCoursesData, availableCoursesData] = await Promise.all([
         courseService.getMyCourses(),
         courseService.getAllCourses({ page: 1, pageItemsCount: 10 })
       ]);
-      
-      console.log('[Home] My Courses:', myCoursesData);
-      console.log('[Home] Available Courses:', availableCoursesData);
       
       const coursesArray = Array.isArray(myCoursesData) ? myCoursesData : [];
       setMyCourses(coursesArray);
@@ -54,18 +55,18 @@ export default function HomeScreen() {
       
       setAvailableCourses(availableArray);
     } catch (err: any) {
-      console.error('[Home] Error:', err);
       setError(err.message || 'فشل تحميل البيانات');
       setMyCourses([]);
       setAvailableCourses([]);
     } finally {
       setIsLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const onRefresh = async () => {
     setRefreshing(true);

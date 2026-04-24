@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, DimensionValue } from 'react-native';
 import { COLORS } from '../constants';
 
 interface SkeletonProps {
@@ -14,7 +14,7 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 8, style 
     <View
       style={[
         styles.skeleton,
-        { width, height, borderRadius },
+        { width: width as DimensionValue, height, borderRadius },
         style,
       ]}
     />

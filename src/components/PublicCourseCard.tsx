@@ -21,7 +21,7 @@ export function PublicCourseCard({ course, onPress }: PublicCourseCardProps) {
         )}
         <View style={styles.content}>
           <Text style={styles.title} numberOfLines={2}>
-            {course.title}
+            {course.name}
           </Text>
           {course.training_center_name && (
             <Text style={styles.center} numberOfLines={1}>
@@ -33,8 +33,8 @@ export function PublicCourseCard({ course, onPress }: PublicCourseCardProps) {
               <Text style={styles.dateLabel}>يبدأ</Text>
               <Text style={styles.date}>{formatDate(course.start_date)}</Text>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(course.status) }]}>
-              <Text style={styles.statusText}>{getStatusLabel(course.status)}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(course.course_status) }]}>
+              <Text style={styles.statusText}>{getStatusLabel(course.course_status)}</Text>
             </View>
           </View>
         </View>
@@ -43,7 +43,7 @@ export function PublicCourseCard({ course, onPress }: PublicCourseCardProps) {
   );
 }
 
-function getStatusColor(status: string): string {
+function getStatusColor(status: string | undefined): string {
   switch (status) {
     case 'approved':
       return COLORS.success;
@@ -56,7 +56,7 @@ function getStatusColor(status: string): string {
   }
 }
 
-function getStatusLabel(status: string): string {
+function getStatusLabel(status: string | undefined): string {
   switch (status) {
     case 'approved':
       return 'متاح';
@@ -65,7 +65,7 @@ function getStatusLabel(status: string): string {
     case 'expired':
       return 'منتهي';
     default:
-      return status;
+      return status || 'غير محدد';
   }
 }
 

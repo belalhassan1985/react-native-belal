@@ -6,10 +6,31 @@ import Animated, {
     withSpring,
     withTiming
 } from 'react-native-reanimated';
+import { useNotifications } from '../hooks/useNotifications';
+import { COLORS } from '../constants';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { unreadCount } = useNotifications();
+
+  const getIcon = (routeName: string) => {
+    switch (routeName) {
+      case 'home':
+        return '🏠';
+      case 'courses':
+        return '📚';
+      case 'my-courses':
+        return '📖';
+      case 'join-requests':
+        return '📋';
+      case 'profile':
+        return '👤';
+      default:
+        return '📱';
+    }
+  };
+
   return (
     <View style={styles.tabBar}>
       <View style={styles.tabBarContainer}>
@@ -42,113 +63,20 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
             });
           };
 
-          const animatedStyle = useAnimatedStyle(() => {
-            const scale = withSpring(isFocused ? 1 : 0.9, {
-              damping: 15,
-              stiffness: 150,
-            });
-
-            const translateY = withSpring(isFocused ? -4 : 0, {
-              damping: 15,
-              stiffness: 150,
-            });
-
-            return {
-              transform: [{ scale }, { translateY }],
-            };
-          });
-
-          const iconAnimatedStyle = useAnimatedStyle(() => {
-            const rotate = withTiming(isFocused ? '0deg' : '0deg', {
-              duration: 300,
-            });
-
-            return {
-              transform: [{ rotate }],
-            };
-          });
-
-          const labelAnimatedStyle = useAnimatedStyle(() => {
-            const opacity = withTiming(isFocused ? 1 : 0.6, {
-              duration: 200,
-            });
-
-            const scale = withSpring(isFocused ? 1 : 0.9, {
-              damping: 15,
-              stiffness: 150,
-            });
-
-            return {
-              opacity,
-              transform: [{ scale }],
-            };
-          });
-
-          const getIcon = (routeName: string) => {
-            switch (routeName) {
-              case 'home':
-                return '🏠';
-              case 'completed':
-                return '🎓';
-              case 'profile':
-                return '👤';
-              default:
-                return '📱';
-            }
-          };
+          const showBadge = route.name === 'home' && unreadCount > 0;
 
           return (
-            <AnimatedTouchable
+            <TabBarItem
               key={route.key}
-              accessibilityRole="button"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={options.tabBarAccessibilityLabel}
+              isFocused={isFocused}
+              label={label as string}
+              icon={getIcon(route.name)}
+              showBadge={showBadge}
+              unreadCount={unreadCount}
+              options={options}
               onPress={onPress}
               onLongPress={onLongPress}
-              style={[styles.tabButton, animatedStyle]}
-              activeOpacity={0.8}
-            >
-              <View style={[
-                styles.tabButtonInner,
-                isFocused && styles.tabButtonActive
-              ]}>
-                <Animated.View style={[styles.iconContainer, iconAnimatedStyle]}>
-                  <Text style={[
-                    styles.icon,
-                    isFocused && styles.iconActive
-                  ]}>
-                    {getIcon(route.name)}
-                  </Text>
-                </Animated.View>
-                <Animated.Text
-                  style={[
-                    styles.label,
-                    isFocused && styles.labelActive,
-                    labelAnimatedStyle
-                  ]}
-                >
-                  {label as string}
-                </Animated.Text>
-              </View>
-              {isFocused && (
-                <Animated.View
-                  style={styles.activeIndicator}
-                  entering={() => {
-                    'worklet';
-                    return {
-                      animations: {
-                        width: withSpring(40, { damping: 15 }),
-                        opacity: withTiming(1, { duration: 200 }),
-                      },
-                      initialValues: {
-                        width: 0,
-                        opacity: 0,
-                      },
-                    };
-                  }}
-                />
-              )}
-            </AnimatedTouchable>
+            />
           );
         })}
       </View>
@@ -156,11 +84,135 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
   );
 }
 
+function TabBarItem({
+  isFocused,
+  label,
+  icon,
+  showBadge,
+  unreadCount,
+  options,
+  onPress,
+  onLongPress,
+}: {
+  isFocused: boolean;
+  label: string;
+  icon: string;
+  showBadge: boolean;
+  unreadCount: number;
+  options: Record<string, unknown>;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  const animatedStyle = useAnimatedStyle(() => {
+    const scale = withSpring(isFocused ? 1 : 0.9, {
+      damping: 15,
+      stiffness: 150,
+    });
+
+    const translateY = withSpring(isFocused ? -4 : 0, {
+      damping: 15,
+      stiffness: 150,
+    });
+
+    return {
+      transform: [{ scale }, { translateY }],
+    };
+  });
+
+  const iconAnimatedStyle = useAnimatedStyle(() => {
+    const rotate = withTiming('0deg', {
+      duration: 300,
+    });
+
+    return {
+      transform: [{ rotate }],
+    };
+  });
+
+  const labelAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = withTiming(isFocused ? 1 : 0.6, {
+      duration: 200,
+    });
+
+    const scale = withSpring(isFocused ? 1 : 0.9, {
+      damping: 15,
+      stiffness: 150,
+    });
+
+    return {
+      opacity,
+      transform: [{ scale }],
+    };
+  });
+
+  return (
+    <AnimatedTouchable
+      accessibilityRole="button"
+      accessibilityState={isFocused ? { selected: true } : {}}
+      accessibilityLabel={options.tabBarAccessibilityLabel as string}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={[styles.tabButton, animatedStyle]}
+      activeOpacity={0.8}
+    >
+      <View style={[
+        styles.tabButtonInner,
+        isFocused && styles.tabButtonActive
+      ]}>
+        <View>
+          <Animated.View style={[styles.iconContainer, iconAnimatedStyle]}>
+            <Text style={[
+              styles.icon,
+              isFocused && styles.iconActive
+            ]}>
+              {icon}
+            </Text>
+          </Animated.View>
+          {showBadge && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Text>
+            </View>
+          )}
+        </View>
+        <Animated.Text
+          style={[
+            styles.label,
+            isFocused && styles.labelActive,
+            labelAnimatedStyle
+          ]}
+        >
+          {label}
+        </Animated.Text>
+      </View>
+      {isFocused && (
+        <Animated.View
+          style={styles.activeIndicator}
+          entering={() => {
+            'worklet';
+            return {
+              animations: {
+                width: withSpring(40, { damping: 15 }),
+                opacity: withTiming(1, { duration: 200 }),
+              },
+              initialValues: {
+                width: 0,
+                opacity: 0,
+              },
+            };
+          }}
+        />
+      )}
+    </AnimatedTouchable>
+  );
+}
+
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: COLORS.border,
     paddingBottom: Platform.OS === 'ios' ? 20 : 8,
     paddingTop: 8,
     shadowColor: '#000',
@@ -190,10 +242,11 @@ const styles = StyleSheet.create({
     minWidth: 70,
   },
   tabButtonActive: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.primary + '15',
   },
   iconContainer: {
     marginBottom: 4,
+    position: 'relative',
   },
   icon: {
     fontSize: 24,
@@ -204,18 +257,35 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: COLORS.textMuted,
     textAlign: 'center',
   },
   labelActive: {
-    color: '#3B82F6',
+    color: COLORS.primary,
     fontWeight: '700',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: COLORS.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   activeIndicator: {
     position: 'absolute',
     bottom: 0,
     height: 3,
-    backgroundColor: '#3B82F6',
+    backgroundColor: COLORS.primary,
     borderRadius: 2,
   },
 });

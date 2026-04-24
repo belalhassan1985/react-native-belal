@@ -1,8 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BORDER_RADIUS, SPACING } from '../constants';
+import { BORDER_RADIUS, COLORS, SPACING } from '../constants';
 import { CourseProgress } from '../types';
 
 interface CompletedCourseCardProps {
@@ -10,7 +10,7 @@ interface CompletedCourseCardProps {
   onPress?: () => void;
 }
 
-export function CompletedCourseCard({ course, onPress }: CompletedCourseCardProps) {
+function CompletedCourseCardComponent({ course, onPress }: CompletedCourseCardProps) {
   const router = useRouter();
 
   const handlePress = () => {
@@ -73,21 +73,18 @@ export function CompletedCourseCard({ course, onPress }: CompletedCourseCardProp
   );
 }
 
+export const CompletedCourseCard = memo(CompletedCourseCardComponent);
+
 const styles = StyleSheet.create({
   container: {
     marginBottom: SPACING.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
   },
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.xl,
     overflow: 'hidden',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#D1FAE5',
+    borderColor: COLORS.success + '40',
   },
   successBanner: {
     flexDirection: 'row',
@@ -98,13 +95,13 @@ const styles = StyleSheet.create({
   },
   successIcon: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: COLORS.text,
     fontWeight: '700',
   },
   successText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.text,
   },
   content: {
     padding: SPACING.md,
@@ -119,15 +116,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: COLORS.text,
     textAlign: 'right',
-    marginRight: SPACING.sm,
+    marginEnd: SPACING.sm,
+    lineHeight: 24,
   },
   achievementBadge: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: COLORS.gold + '30',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -150,14 +148,14 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: COLORS.text,
   },
   statLabel: {
     fontSize: 11,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
   },
   completionBadge: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: COLORS.success + '20',
     paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.full,
@@ -166,6 +164,6 @@ const styles = StyleSheet.create({
   completionText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#059669',
+    color: COLORS.success,
   },
 });

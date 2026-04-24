@@ -1,18 +1,16 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
-import { BORDER_RADIUS, SPACING } from '../constants';
+import React, { memo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BORDER_RADIUS, COLORS, SPACING } from '../constants';
 import { CourseProgress } from '../types';
-
-const { width } = Dimensions.get('window');
 
 interface ModernCourseCardProps {
   course: CourseProgress;
   onPress?: () => void;
 }
 
-export function ModernCourseCard({ course, onPress }: ModernCourseCardProps) {
+function ModernCourseCardComponent({ course, onPress }: ModernCourseCardProps) {
   const router = useRouter();
   const progress = course.progress_percentage || 0;
   const isCompleted = progress === 100;
@@ -25,25 +23,20 @@ export function ModernCourseCard({ course, onPress }: ModernCourseCardProps) {
     }
   };
 
-  const getProgressColor = (): readonly [string, string] => {
-    if (isCompleted) return ['#10B981', '#059669'] as const;
-    if (progress >= 75) return ['#F59E0B', '#D97706'] as const;
-    if (progress >= 50) return ['#3B82F6', '#2563EB'] as const;
-    return ['#6366F1', '#4F46E5'] as const;
+  const getProgressColor = (): readonly [string, string, string] => {
+    if (isCompleted) return ['#10B981', '#059669', '#10B981'];
+    if (progress >= 75) return ['#F59E0B', '#D97706', '#F59E0B'];
+    if (progress >= 50) return ['#3B82F6', '#2563EB', '#3B82F6'];
+    return ['#6366F1', '#4F46E5', '#818CF8'];
   };
 
   return (
     <Pressable
       style={styles.container}
       onPress={handlePress}
-      android_ripple={{ color: 'rgba(59, 130, 246, 0.1)' }}
+      android_ripple={{ color: COLORS.primary + '20' }}
     >
-      <LinearGradient
-        colors={['#FFFFFF', '#F8FAFC']}
-        style={styles.card}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      >
+      <View style={styles.card}>
         <View style={styles.header}>
           <View style={styles.titleContainer}>
             <Text style={styles.courseName} numberOfLines={2}>
@@ -63,12 +56,14 @@ export function ModernCourseCard({ course, onPress }: ModernCourseCardProps) {
         </View>
 
         <View style={styles.progressBarContainer}>
-          <LinearGradient
-            colors={getProgressColor()}
-            style={[styles.progressBarFill, { width: `${progress}%` }]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          />
+          <View style={[styles.progressBarFill, { width: `${progress}%` }]}>
+            <LinearGradient
+              colors={getProgressColor()}
+              style={styles.progressBarGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            />
+          </View>
         </View>
 
         <View style={styles.statsContainer}>
@@ -89,19 +84,21 @@ export function ModernCourseCard({ course, onPress }: ModernCourseCardProps) {
             <Text style={styles.statValue}>
               {course.total_lectures - course.completed_lectures}
             </Text>
-            <Text style={styles.statLabel}>متبقية</Text>
+            <Text style={styles.statLabel}>متبقي</Text>
           </View>
         </View>
 
-        {isCompleted && (
+        {isCompleted ? (
           <View style={styles.completedBadge}>
             <Text style={styles.completedText}>🎉 مكتملة</Text>
           </View>
-        )}
-      </LinearGradient>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
+
+export const ModernCourseCard = memo(ModernCourseCardComponent);
 
 const styles = StyleSheet.create({
   container: {
@@ -110,13 +107,9 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.border,
   },
   header: {
     flexDirection: 'row',
@@ -126,12 +119,12 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    marginRight: SPACING.md,
+    marginEnd: SPACING.md,
   },
   courseName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: COLORS.text,
     textAlign: 'right',
     lineHeight: 24,
   },
@@ -140,25 +133,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   progressCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   progressText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: COLORS.text,
   },
   progressBarContainer: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
+    height: 6,
+    backgroundColor: COLORS.surfaceLight,
     borderRadius: BORDER_RADIUS.full,
     overflow: 'hidden',
     marginBottom: SPACING.md,
@@ -166,6 +154,10 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: BORDER_RADIUS.full,
+    overflow: 'hidden',
+  },
+  progressBarGradient: {
+    flex: 1,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -183,21 +175,21 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: COLORS.text,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 11,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
   },
   statDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: COLORS.border,
   },
   completedBadge: {
     marginTop: SPACING.sm,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: COLORS.success + '20',
     paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
@@ -206,6 +198,6 @@ const styles = StyleSheet.create({
   completedText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#059669',
+    color: COLORS.success,
   },
 });

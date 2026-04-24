@@ -16,9 +16,21 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="completed"
+        name="courses"
         options={{
-          title: 'المكتملة',
+          title: 'الدورات',
+        }}
+      />
+      <Tabs.Screen
+        name="my-courses"
+        options={{
+          title: 'دوراتي',
+        }}
+      />
+      <Tabs.Screen
+        name="join-requests"
+        options={{
+          title: 'طلباتي',
         }}
       />
       <Tabs.Screen
